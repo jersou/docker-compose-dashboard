@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+
+  db:
+    image: alpine:3.19.1
+    command: sleep 1h
+    labels:
+      hide-from-dcpps: true
+    healthcheck:
+      test: exit 0
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 5s
+
+  backend:
+    image: alpine:3.19.1
+    command: sleep 1h
+    healthcheck:
+      test: exit 0
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 5s
+
+  frontend:
+    image: alpine:3.19.1
+    command: sleep 1h
+    healthcheck:
+      test: exit 0
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 5s
+
+
+  dcp-http:
+    image: dcp-http
+    build: ..
+    privileged: true
+    volumes:
+      - ..:/host
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /host/example
+    ports:
+      - 9999:9999
+    command: deno run -A /host/dcp-http.ts 9999
+
+
