@@ -3,48 +3,58 @@ version: '3.8'
 services:
 
   db:
+    labels:
+      dashboard.index: 2
+      dashboard.title: Database
+      dashboard.material-symbols-outlined: database
+#      dashboard.link: http://localhost:5432/
+#      dashboard.extra-link: http://localhost:5432/adm
+#      dashboard.extra-text: ADM
     image: alpine:3.19.1
     command: sleep 1h
-    labels:
-      hide-from-dcpps: true
     healthcheck:
       test: exit 0
-      interval: 10s
-      timeout: 5s
-      retries: 60
-      start_period: 5s
+      interval: 4s
 
   backend:
+    labels:
+      dashboard.index: 3
+      dashboard.material-symbols-outlined: dns
+      dashboard.link: http://localhost:8080/
+      dashboard.extra-link: http://localhost:8080/api/
+      dashboard.extra-text: API
     image: alpine:3.19.1
     command: sleep 1h
     healthcheck:
       test: exit 0
-      interval: 10s
-      timeout: 5s
-      retries: 60
-      start_period: 5s
+      interval: 4s
 
   frontend:
+    labels:
+      dashboard.index: 1
+      dashboard.title: Frontoffice num2
+      dashboard.material-symbols-outlined: laptop
+      dashboard.link: http://localhost:4002/
+      dashboard.extra-link: http://localhost:4002/storybook/
+      dashboard.extra-text: Storybook
     image: alpine:3.19.1
     command: sleep 1h
     healthcheck:
       test: exit 0
-      interval: 10s
-      timeout: 5s
-      retries: 60
-      start_period: 5s
+      interval: 4s
 
 
-  dcp-http:
-    image: dcp-http
+  docker-compose-dashboard:
+    labels:
+      dashboard.hide: true
+    image: docker-compose-dashboard
     build: ..
-    privileged: true
     volumes:
-      - ..:/host
+      - ..:/host:ro
       - /var/run/docker.sock:/var/run/docker.sock
+      - ../docker-compose-dashboard.ts:/docker-compose-dashboard.ts:ro
     working_dir: /host/example
     ports:
-      - 9999:9999
-    command: deno run -A /host/dcp-http.ts 9999
+      - 127.0.0.1:5555:5555
 
 

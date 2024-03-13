@@ -1,0 +1,113 @@
+@font-face {
+    font-family: 'Material Symbols Outlined';
+    font-style: normal;
+    font-weight: 400;
+    /*https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined*/
+    src: url(material-symbols-outlined.woff2) format('woff2');
+}
+
+.material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+}
+
+
+
+body {
+    display: flex;
+    position: absolute;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    color: #1c2aa9;
+}
+
+.app {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-content: center;
+    max-width: 900px;
+    margin: 0;
+}
+
+.service {
+    border: #aaa solid 3px;
+    display: flex;
+    padding: 32px 25px 18px 25px;
+    box-shadow: 6px 6px 8px #bbb;
+    font-size: 16px;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background-color: #cccccc33;
+    width: 80px;
+    height: 80px;
+    margin: 5px;
+    position: relative;
+}
+
+.service:hover {
+    border: #777 solid 3px;
+    box-shadow: 6px 6px 8px #777;
+
+}
+
+.service:active {
+    box-shadow: 5px 5px 6px #bbb;
+}
+
+.control {
+    z-index: 100;
+    cursor: pointer;
+    position: absolute;
+    top:0;
+    left: 0;
+    border-bottom: #999 solid 1px;
+    border-right: #999 solid 1px;
+    border-bottom-right-radius: 10px;
+    padding: 4px 4px 0 0;
+    background-color: #c1d1ff;
+}
+.control:hover {
+    border: #555 solid 2px;
+}
+
+.app .icon {
+    font-size: 48px;
+    font-style: normal;
+    font-weight: 400;
+}
+
+.hasLink {
+    cursor: pointer;
+}
+
+.extra {
+    z-index: 100;
+    cursor: pointer;
+    position: absolute;
+    top:0;
+    right: 0;
+    border-bottom: #999 solid 1px;
+    border-left: #999 solid 1px;
+    border-bottom-left-radius: 10px;
+    padding: 6px;
+    background-color: #c1d1ff;
+}
+.extra:hover {
+    border: #555 solid 2px;
+}
