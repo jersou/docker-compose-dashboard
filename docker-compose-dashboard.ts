@@ -1,51 +1,34 @@
-#!/usr/bin/env -S deno run  --allow-net=localhost:5555 --allow-env --allow-read --allow-run=/usr/bin/docker
+#!/usr/bin/env -S deno run  --allow-net=localhost:5555 --allow-env --allow-read --allow-write=assets_bundle.json --allow-run=/usr/bin/docker
 
 import $ from "https://deno.land/x/dax@0.39.2/mod.ts";
 import { TextLineStream } from "https://deno.land/std@0.219.0/streams/text_line_stream.ts";
+import {
+  decodeBase64,
+  encodeBase64,
+} from "https://deno.land/std@0.220.0/encoding/base64.ts";
 import { cliteRun } from "https://deno.land/x/clite_parser@0.2.1/clite_parser.ts";
-$.setPrintCommand(true);
-// check config from current dir
-await $`docker compose config --quiet`;
+import assetsFromJson from "./assets_bundle.json" with { type: "json" };
 
-const subStatus = (s: any) => ({
-  Service: s.Service,
-  CreatedAt: s.CreatedAt,
-  ExitCode: s.ExitCode,
-  Health: s.Health,
-  RunningFor: s.RunningFor,
-  State: s.State,
-  Status: s.Status,
-});
-
-const wsRoute = new URLPattern({ pathname: "/api/events-ws" });
-const frontendFiles = {
-  "index.html": { type: "text/html", route: new URLPattern({ pathname: "/" }) },
-  "main.js": { type: "text/javascript" },
-  "favicon.png": { type: "image/png" },
-  "style.css": { type: "text/css" },
-  "htm@3.1.1-preact-standalone.module.js": { type: "text/javascript" },
-  "material-symbols-outlined.woff2": { type: "application/font-woff2" },
-} as {
+type Assets = {
   [k: string]: { type: string; content?: Uint8Array; route?: URLPattern };
 };
 
-const resolve = (path: string) =>
-  $.path(import.meta).resolve(`../frontend/${path}`).toString();
-
-for (const fileName in frontendFiles) {
-  frontendFiles[fileName].content = await Deno.readFile(resolve(fileName));
-  if (!frontendFiles[fileName].route) {
-    frontendFiles[fileName].route = new URLPattern({
-      pathname: `/${fileName}`,
-    });
-  }
-}
+const wsRoute = new URLPattern({ pathname: "/api/events-ws" });
 
 const getStatus = async () =>
   (await $`docker compose ps --all --format json`.text())
     .split("\n")
     .map((s) => JSON.parse(s))
-    .map(subStatus).reduce((obj, serv) => {
+    .map((s: any) => ({
+      Service: s.Service,
+      CreatedAt: s.CreatedAt,
+      ExitCode: s.ExitCode,
+      Health: s.Health,
+      RunningFor: s.RunningFor,
+      State: s.State,
+      Status: s.Status,
+    }))
+    .reduce((obj, serv) => {
       obj[serv.Service as string] = serv;
       return obj;
     }, {} as { [key: string]: any });
@@ -108,15 +91,15 @@ const routes = [
   },
 ] as const;
 
-const sockets = new Set<WebSocket>();
-
 class DockerComposeDashboard {
   hostname = "localhost";
   port = 5555;
   update = false;
   _update_desc = "update assets_bundle.json";
+  #sockets = new Set<WebSocket>();
+  #assets: Assets = {};
 
-  async handleRequest(request: Request) {
+  async #handleRequest(request: Request) {
     console.log(`handle ${request.url}`);
     for (const { route, exec } of routes) {
       const match = route.exec(request.url);
@@ -126,7 +109,7 @@ class DockerComposeDashboard {
         return resp;
       }
     }
-    for (const file of Object.values(frontendFiles)) {
+    for (const file of Object.values(this.#assets!)) {
       if (file.route?.exec(request.url)) {
         const headers = { "Content-Type": file.type };
         return new Response(file.content, { status: 200, headers });
@@ -138,19 +121,19 @@ class DockerComposeDashboard {
       }
       const { socket, response } = Deno.upgradeWebSocket(request);
       socket.addEventListener("open", () => {
-        sockets.add(socket);
-        console.log(`a client connected! ${sockets.size} clients`);
+        this.#sockets.add(socket);
+        console.log(`a client connected! ${this.#sockets.size} clients`);
       });
       socket.addEventListener("close", () => {
-        sockets.delete(socket);
-        console.log(`a client disconnected! ${sockets.size} clients`);
+        this.#sockets.delete(socket);
+        console.log(`a client disconnected! ${this.#sockets.size} clients`);
       });
       return response;
     }
     return new Response("", { status: 404 });
   }
 
-  async watchDockerComposeEvents() {
+  async #watchDockerComposeEvents() {
     const eventProcess = $`docker compose events --json `.stdout("piped")
       .spawn();
     const lines = eventProcess.stdout()
@@ -159,30 +142,88 @@ class DockerComposeDashboard {
     for await (const line of lines) {
       const event = JSON.parse(line);
       if (event.action && !event.action.startsWith("exec_")) {
-        console.log(`>>>> event >>>> ${event.action}`);
+        console.log(`>>>> docker compose event : ${event.action}`);
         // TODO debounce
         const config = await getConfigWithStatus();
         const configJson = JSON.stringify(config);
-        for (const socket of sockets) {
+        for (const socket of this.#sockets) {
           socket.send(configJson);
         }
+      }
+    }
+  }
+  async updateAssets() {
+    console.log("update assets_bundle.json");
+    const frontendFiles = {
+      "index.html": {
+        type: "text/html",
+        route: new URLPattern({ pathname: "/" }),
+      },
+      "main.js": { type: "text/javascript" },
+      "favicon.png": { type: "image/png" },
+      "style.css": { type: "text/css" },
+      "htm@3.1.1-preact-standalone.module.js": { type: "text/javascript" },
+      "material-symbols-outlined.woff2": { type: "application/font-woff2" },
+    } as Assets;
+
+    const resolve = (path: string) =>
+      $.path(import.meta).resolve(`../frontend/${path}`).toString();
+
+    for (const fileName in frontendFiles) {
+      frontendFiles[fileName].content = await Deno.readFile(
+        resolve(fileName),
+      );
+      if (!frontendFiles[fileName].route) {
+        frontendFiles[fileName].route = new URLPattern({
+          pathname: `/${fileName}`,
+        });
+      }
+    }
+
+    await Deno.writeTextFile(
+      $.path(import.meta).resolve("../assets_bundle.json").toString(),
+      JSON.stringify(frontendFiles, (key, value) => {
+        if (key === "content") {
+          return encodeBase64(value as Uint8Array);
+        } else if (key === "route") {
+          return (value as URLPattern).pathname;
+        } else {
+          return value;
+        }
+      }, "  "),
+    );
+  }
+
+  async #loadAssets() {
+    if (this.update) {
+      await this.updateAssets();
+    } else {
+      for (const [key, asset] of Object.entries(assetsFromJson)) {
+        this.#assets[key] = {
+          type: asset?.type,
+          route: new URLPattern({ pathname: asset.route }),
+          content: decodeBase64(asset.content),
+        };
       }
     }
   }
 
   async main() {
     console.log(`Docker Compose Dashboard running from ${Deno.cwd()}`);
+    await this.#loadAssets();
 
-    this.watchDockerComposeEvents().then();
+    $.setPrintCommand(true);
+    // check config from current dir
+    await $`docker compose config --quiet`;
 
+    this.#watchDockerComposeEvents().then();
     Deno.serve(
       { hostname: this.hostname, port: this.port },
-      (r) => this.handleRequest(r),
+      (r) => this.#handleRequest(r),
     );
   }
 }
 
-// if the file is imported, do not execute this block
 if (import.meta.main) {
   cliteRun(new DockerComposeDashboard());
 }
