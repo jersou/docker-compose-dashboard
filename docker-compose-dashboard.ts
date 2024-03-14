@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run  --allow-net=localhost:5555 --allow-env --allow-read --allow-run=/usr/bin/docker
 
 import $ from "https://deno.land/x/dax@0.39.2/mod.ts";
-
+import { TextLineStream } from "https://deno.land/std@0.219.0/streams/text_line_stream.ts";
 $.setPrintCommand(true);
 // check config from current dir
 await $`docker compose config --quiet`;
@@ -16,9 +16,9 @@ const subStatus = (s: any) => ({
   Status: s.Status,
 });
 
-const baseRoute = new URLPattern({ pathname: "/" });
+const wsRoute = new URLPattern({ pathname: "/api/events-ws" });
 const frontendFiles = {
-  "index.html": { type: "text/html" },
+  "index.html": { type: "text/html", route: new URLPattern({ pathname: "/" }) },
   "main.js": { type: "text/javascript" },
   "favicon.png": { type: "image/png" },
   "style.css": { type: "text/css" },
@@ -33,7 +33,11 @@ const resolve = (path: string) =>
 
 for (const fileName in frontendFiles) {
   frontendFiles[fileName].content = await Deno.readFile(resolve(fileName));
-  frontendFiles[fileName].route = new URLPattern({ pathname: `/${fileName}` });
+  if (!frontendFiles[fileName].route) {
+    frontendFiles[fileName].route = new URLPattern({
+      pathname: `/${fileName}`,
+    });
+  }
 }
 
 const getStatus = async () =>
@@ -68,16 +72,20 @@ const getConfig = async () => {
     }, {} as { [key: string]: any });
 };
 
+const getConfigWithStatus = async () => {
+  const config = await getConfig();
+  const statuses = await getStatus();
+  for (const serv in config) {
+    config[serv].status = statuses[serv] ?? { Status: "unknown" };
+  }
+  return config;
+};
+
 const routes = [
   {
     route: new URLPattern({ pathname: "/api/status" }),
     async exec(_match: URLPatternResult) {
-      const config = await getConfig();
-      const statuses = await getStatus();
-      for (const serv in config) {
-        config[serv].status = statuses[serv] ?? { Status: "unknown" };
-      }
-      const body = JSON.stringify(config);
+      const body = JSON.stringify(await getConfigWithStatus());
       return new Response(body, { status: 200 });
     },
   },
@@ -99,6 +107,8 @@ const routes = [
   },
 ] as const;
 
+const sockets = new Set<WebSocket>();
+
 const handler = async (request: Request) => {
   console.log(`handle ${request.url}`);
   for (const { route, exec } of routes) {
@@ -115,13 +125,43 @@ const handler = async (request: Request) => {
       return new Response(file.content, { status: 200, headers });
     }
   }
-  if (baseRoute?.exec(request.url)) {
-    const file = frontendFiles["index.html"];
-    const headers = { "Content-Type": file.type };
-    return new Response(file.content, { status: 200, headers });
+  if (wsRoute.exec(request.url)) {
+    if (request.headers.get("upgrade") != "websocket") {
+      return new Response(null, { status: 501 });
+    }
+    const { socket, response } = Deno.upgradeWebSocket(request);
+    socket.addEventListener("open", () => {
+      sockets.add(socket);
+      console.log(`a client connected! ${sockets.size} clients`);
+    });
+    socket.addEventListener("close", () => {
+      sockets.delete(socket);
+      console.log(`a client disconnected! ${sockets.size} clients`);
+    });
+    return response;
   }
   return new Response("", { status: 404 });
 };
+
+(async () => {
+  const eventProcess = $`docker compose events --json `.stdout("piped").spawn();
+  const lines = eventProcess.stdout()
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new TextLineStream());
+  for await (const line of lines) {
+    const event = JSON.parse(line);
+    if (event.action && !event.action.startsWith("exec_")) {
+      console.log(`>>>> event >>>> ${event.action}`);
+      // TODO debounce
+      const config = await getConfigWithStatus();
+      const configJson = JSON.stringify(config);
+      for (const socket of sockets) {
+        socket.send(configJson);
+      }
+    }
+  }
+})();
+
 const hostname = Deno.args.length === 2 ? Deno.args[0] : "localhost";
 const port = Deno.args.length === 2 ? parseInt(Deno.args[1]) : 5555;
 

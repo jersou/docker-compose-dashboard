@@ -38,16 +38,36 @@ function getColor(state, health) {
   }
 }
 
+const wsUri =
+  `ws://${window.location.host}${window.location.pathname}api/events-ws`;
+
+function updateOnEvent(update) {
+  const socket = new WebSocket(wsUri);
+  socket.addEventListener("open", (event) => {
+    console.log("ws ok");
+    socket.send("ws ok");
+    update();
+  });
+  socket.addEventListener("message", (event) => {
+    console.log("update from server");
+    update(JSON.parse(event.data));
+  });
+  socket.addEventListener("close", (event) => {
+    console.log("close event", event);
+    // retry in 5s
+    setTimeout(() => updateOnEvent(update), 5000);
+  });
+}
+
 function App() {
   const [services, setServices] = useState({});
-  const update = useCallback(async () => {
-    // setServices
-    setServices(await getStatus());
+  const update = useCallback(async (config) => {
+    setServices(config || await getStatus());
   }, [setServices]);
 
   useEffect(async () => {
     update();
-    setInterval(update, 5000);
+    updateOnEvent(update);
   }, []);
   const cards = Object.values(services)
     .sort((a, b) =>
@@ -55,12 +75,8 @@ function App() {
         ((a.labels?.["dashboard.index"] ?? 0) -
           (b.labels?.["dashboard.index"] ?? 0)) + a.name.localeCompare(b.name)
     )
-    .map((service) =>
-      html`
-            <${Service} service=${service} update=${update}/>`
-    );
-  return html`
-        <div class="app">${cards}</div>`;
+    .map((service) => html`<${Service} service=${service} update=${update}/>`);
+  return html`<div class="app">${cards}</div>`;
 }
 
 function Control({ service, update }) {
