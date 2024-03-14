@@ -2,6 +2,7 @@
 
 import $ from "https://deno.land/x/dax@0.39.2/mod.ts";
 import { TextLineStream } from "https://deno.land/std@0.219.0/streams/text_line_stream.ts";
+import { cliteRun } from "https://deno.land/x/clite_parser@0.2.1/clite_parser.ts";
 $.setPrintCommand(true);
 // check config from current dir
 await $`docker compose config --quiet`;
@@ -109,61 +110,79 @@ const routes = [
 
 const sockets = new Set<WebSocket>();
 
-const handler = async (request: Request) => {
-  console.log(`handle ${request.url}`);
-  for (const { route, exec } of routes) {
-    const match = route.exec(request.url);
-    if (match) {
-      const resp = await exec(match);
-      resp.headers.set("Access-Control-Allow-Origin", "*");
-      return resp;
-    }
-  }
-  for (const file of Object.values(frontendFiles)) {
-    if (file.route?.exec(request.url)) {
-      const headers = { "Content-Type": file.type };
-      return new Response(file.content, { status: 200, headers });
-    }
-  }
-  if (wsRoute.exec(request.url)) {
-    if (request.headers.get("upgrade") != "websocket") {
-      return new Response(null, { status: 501 });
-    }
-    const { socket, response } = Deno.upgradeWebSocket(request);
-    socket.addEventListener("open", () => {
-      sockets.add(socket);
-      console.log(`a client connected! ${sockets.size} clients`);
-    });
-    socket.addEventListener("close", () => {
-      sockets.delete(socket);
-      console.log(`a client disconnected! ${sockets.size} clients`);
-    });
-    return response;
-  }
-  return new Response("", { status: 404 });
-};
+class DockerComposeDashboard {
+  hostname = "localhost";
+  port = 5555;
+  update = false;
+  _update_desc = "update assets_bundle.json";
 
-(async () => {
-  const eventProcess = $`docker compose events --json `.stdout("piped").spawn();
-  const lines = eventProcess.stdout()
-    .pipeThrough(new TextDecoderStream())
-    .pipeThrough(new TextLineStream());
-  for await (const line of lines) {
-    const event = JSON.parse(line);
-    if (event.action && !event.action.startsWith("exec_")) {
-      console.log(`>>>> event >>>> ${event.action}`);
-      // TODO debounce
-      const config = await getConfigWithStatus();
-      const configJson = JSON.stringify(config);
-      for (const socket of sockets) {
-        socket.send(configJson);
+  async handleRequest(request: Request) {
+    console.log(`handle ${request.url}`);
+    for (const { route, exec } of routes) {
+      const match = route.exec(request.url);
+      if (match) {
+        const resp = await exec(match);
+        resp.headers.set("Access-Control-Allow-Origin", "*");
+        return resp;
+      }
+    }
+    for (const file of Object.values(frontendFiles)) {
+      if (file.route?.exec(request.url)) {
+        const headers = { "Content-Type": file.type };
+        return new Response(file.content, { status: 200, headers });
+      }
+    }
+    if (wsRoute.exec(request.url)) {
+      if (request.headers.get("upgrade") != "websocket") {
+        return new Response(null, { status: 501 });
+      }
+      const { socket, response } = Deno.upgradeWebSocket(request);
+      socket.addEventListener("open", () => {
+        sockets.add(socket);
+        console.log(`a client connected! ${sockets.size} clients`);
+      });
+      socket.addEventListener("close", () => {
+        sockets.delete(socket);
+        console.log(`a client disconnected! ${sockets.size} clients`);
+      });
+      return response;
+    }
+    return new Response("", { status: 404 });
+  }
+
+  async watchDockerComposeEvents() {
+    const eventProcess = $`docker compose events --json `.stdout("piped")
+      .spawn();
+    const lines = eventProcess.stdout()
+      .pipeThrough(new TextDecoderStream())
+      .pipeThrough(new TextLineStream());
+    for await (const line of lines) {
+      const event = JSON.parse(line);
+      if (event.action && !event.action.startsWith("exec_")) {
+        console.log(`>>>> event >>>> ${event.action}`);
+        // TODO debounce
+        const config = await getConfigWithStatus();
+        const configJson = JSON.stringify(config);
+        for (const socket of sockets) {
+          socket.send(configJson);
+        }
       }
     }
   }
-})();
 
-const hostname = Deno.args.length === 2 ? Deno.args[0] : "localhost";
-const port = Deno.args.length === 2 ? parseInt(Deno.args[1]) : 5555;
+  async main() {
+    console.log(`Docker Compose Dashboard running from ${Deno.cwd()}`);
 
-console.log(`Docker Compose Dashboard running from ${Deno.cwd()}`);
-Deno.serve({ hostname, port }, handler);
+    this.watchDockerComposeEvents().then();
+
+    Deno.serve(
+      { hostname: this.hostname, port: this.port },
+      (r) => this.handleRequest(r),
+    );
+  }
+}
+
+// if the file is imported, do not execute this block
+if (import.meta.main) {
+  cliteRun(new DockerComposeDashboard());
+}
