@@ -102,7 +102,10 @@ function ExtraLink({ service }) {
   const link = service.labels?.["dashboard.extra-link"];
   const text = service.labels?.["dashboard.extra-text"];
   if (link && text) {
-    const onclick = () => window.open(link, "_blank", "noreferrer");
+    const onclick = (e) => {
+      e.stopPropagation();
+      window.open(link, "_blank", "noreferrer");
+    };
     return html`<div class="extra" onclick=${onclick}>${text}</div>`;
   } else return null;
 }
