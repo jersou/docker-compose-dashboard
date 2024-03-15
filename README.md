@@ -18,7 +18,6 @@ deno install -f \
 ## or run directly from a docker compose project
 ```
 deno run \
-    --name dacoda \
     --allow-net=localhost:5555 \
     --allow-env \
     --allow-read \
