@@ -111,3 +111,14 @@ body {
 .extra:hover {
     border: #555 solid 2px;
 }
+
+@media (prefers-color-scheme: light ){
+    body{
+        background-color: #fff;
+    }
+}
+@media (prefers-color-scheme: dark){
+    body{
+        background-color: #222;
+    }
+}
