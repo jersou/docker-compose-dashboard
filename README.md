@@ -1,9 +1,11 @@
-# docker compose dashboard ("docoda" alias?)
+# docker compose dashboard
+
+see [docker-compose.yml](example%2Fdocker-compose.yml)
 
 ![screenshot.png](screenshot.png)
 
 ## install
-```
+```shell
 deno install -f \
     --name dacoda \
     --allow-net=localhost:5555 \
@@ -12,23 +14,24 @@ deno install -f \
     --allow-run=/usr/bin/docker \
         https://deno.land/x/docker_compose_dashboard@0.1.0/docker-compose-dashboard.ts
 # → run "dacoda" from a docker compose project
+# → open localhost:5555 in a browser
 ```
 
 
 ## or run directly from a docker compose project
-```
+```shell
 deno run \
     --allow-net=localhost:5555 \
     --allow-env \
     --allow-read \
     --allow-run=/usr/bin/docker \
         https://deno.land/x/docker_compose_dashboard@0.1.0/docker-compose-dashboard.ts
+# → open localhost:5555 in a browser
 ```
 
 
 ## TODO :
 
-see [docker-compose.yml](example%2Fdocker-compose.yml)
 
 - README.md
   - lib list

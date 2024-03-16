@@ -178,6 +178,11 @@ class DockerComposeDashboard {
           pathname: `/${fileName}`,
         });
       }
+      this.#assets[fileName] = {
+        type: frontendFiles[fileName].type,
+        route: frontendFiles[fileName].route,
+        content: frontendFiles[fileName].content,
+      };
     }
 
     await Deno.writeTextFile(
