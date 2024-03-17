@@ -74,6 +74,9 @@ body {
 .service-name {
     padding: 0 15px;
 }
+.no-link {
+    cursor: default;
+}
 
 .control {
     z-index: 100;

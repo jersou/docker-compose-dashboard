@@ -121,7 +121,7 @@ function Service({ service, update }) {
   const link = service.labels?.["dashboard.link"];
   return html`
     <div class="service" title=${service.status.Status} style="background-color: ${color}">
-        <a href=${link} class="service-link">
+        <a href=${link} class="service-link${link ? "" : " no-link"}">
             <${Icon} service=${service}/>
               <div class="service-name">
                 ${service.labels?.["dashboard.title"] ?? service.name}
