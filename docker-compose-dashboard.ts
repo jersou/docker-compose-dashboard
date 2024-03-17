@@ -8,10 +8,9 @@ import {
 } from "https://deno.land/std@0.220.0/encoding/base64.ts";
 import { cliteRun } from "https://deno.land/x/clite_parser@0.2.1/clite_parser.ts";
 import assetsFromJson from "./assets_bundle.json" with { type: "json" };
-
-type Assets = {
-  [k: string]: { type: string; content?: Uint8Array; route?: URLPattern };
-};
+import { walk } from "https://deno.land/std@0.219.0/fs/walk.ts";
+import { assert } from "https://deno.land/std@0.219.0/assert/assert.ts";
+import { extname } from "https://deno.land/std@0.219.0/path/extname.ts";
 
 const wsRoute = new URLPattern({ pathname: "/api/events-ws" });
 
@@ -91,6 +90,10 @@ const routes = [
   },
 ] as const;
 
+type Assets = {
+  [k: string]: { type: string; content: Uint8Array; route: URLPattern };
+};
+
 class DockerComposeDashboard {
   hostname = "localhost";
   port = 5555;
@@ -154,40 +157,28 @@ class DockerComposeDashboard {
   }
   async updateAssets() {
     console.log("update assets_bundle.json");
-    const frontendFiles = {
-      "index.html": {
-        type: "text/html",
-        route: new URLPattern({ pathname: "/" }),
-      },
-      "main.js": { type: "text/javascript" },
-      "favicon.png": { type: "image/png" },
-      "style.css": { type: "text/css" },
-      "htm@3.1.1-preact-standalone.module.js": { type: "text/javascript" },
-      "material-symbols-outlined.woff2": { type: "application/font-woff2" },
-    } as Assets;
-
-    const resolve = (path: string) =>
-      $.path(import.meta).resolve(`../frontend/${path}`).toString();
-
-    for (const fileName in frontendFiles) {
-      frontendFiles[fileName].content = await Deno.readFile(
-        resolve(fileName),
-      );
-      if (!frontendFiles[fileName].route) {
-        frontendFiles[fileName].route = new URLPattern({
-          pathname: `/${fileName}`,
-        });
-      }
-      this.#assets[fileName] = {
-        type: frontendFiles[fileName].type,
-        route: frontendFiles[fileName].route,
-        content: frontendFiles[fileName].content,
-      };
+    const { mimeTypes } = await import("./mime-types.ts");
+    const frontendPath = $.path(import.meta).resolve(`../frontend/`).toString();
+    for await (const entry of walk(frontendPath, { includeDirs: false })) {
+      assert(entry.path.startsWith(frontendPath));
+      const path = entry.path.substring(frontendPath.length);
+      const ext = extname(path)?.substring(1);
+      const type = mimeTypes[ext];
+      const content = await Deno.readFile(entry.path);
+      const route = new URLPattern({ pathname: path });
+      this.#assets[path] = { type, route, content };
+      console.log({ path, type });
     }
+    const paths = Object.keys(this.#assets).sort();
+    const assets: Assets = {};
+
+    paths.forEach((path) => {
+      assets[path] = this.#assets[path];
+    });
 
     await Deno.writeTextFile(
       $.path(import.meta).resolve("../assets_bundle.json").toString(),
-      JSON.stringify(frontendFiles, (key, value) => {
+      JSON.stringify(assets, (key, value) => {
         if (key === "content") {
           return encodeBase64(value as Uint8Array);
         } else if (key === "route") {
@@ -210,6 +201,10 @@ class DockerComposeDashboard {
           content: decodeBase64(asset.content),
         };
       }
+    }
+    if (this.#assets["/index.html"]) {
+      const route = new URLPattern({ pathname: "/" });
+      this.#assets["/"] = { ...this.#assets["/index.html"], route };
     }
   }
 
