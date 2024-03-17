@@ -7,9 +7,6 @@ services:
       dashboard.index: 2
       dashboard.title: Database
       dashboard.material-symbols-outlined: database
-#      dashboard.link: http://localhost:5432/
-#      dashboard.extra-link: http://localhost:5432/adm
-#      dashboard.extra-text: ADM
     image: alpine:3.19.1
     command: sleep 1h
     healthcheck:
@@ -43,18 +40,31 @@ services:
       test: exit 0
       interval: 4s
 
+  scrip-ok:
+    image: alpine:3.19.1
+    command: sleep 10s
+    healthcheck:
+      test: exit 0
+      interval: 4s
 
-  docker-compose-dashboard:
-    labels:
-      dashboard.hide: true
-    image: docker-compose-dashboard
-    build: ..
-    volumes:
-      - ..:/host:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ../docker-compose-dashboard.ts:/docker-compose-dashboard.ts:ro
-    working_dir: /host/example
-    ports:
-      - 127.0.0.1:5555:5555
+  scrip-ko:
+    image: alpine:3.19.1
+    command: sh -c "sleep 10s ; exit 1"
+    healthcheck:
+      test: exit 0
+      interval: 4s
+
+#  docker-compose-dashboard:
+#    labels:
+#      dashboard.hide: true
+#    image: docker-compose-dashboard
+#    build: ..
+#    volumes:
+#      - ..:/host:ro
+#      - /var/run/docker.sock:/var/run/docker.sock
+#      - ../docker-compose-dashboard.ts:/docker-compose-dashboard.ts:ro
+#    working_dir: /host/example
+#    ports:
+#      - 127.0.0.1:5555:5555
 
 

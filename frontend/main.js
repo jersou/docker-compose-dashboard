@@ -13,25 +13,31 @@ const toggle = (service) =>
 
 const getStatus = async () => (await fetch(`/api/status`)).json();
 
-function getColor(state, health) {
+function getColor(state, health, exitcode) {
   switch (state) {
     case "not created":
     case "dead":
     case "removing":
     case "paused":
     case "exited":
-      return health === "starting" ? "#fff594" : "#ffcccc";
+      return health === "starting"
+        ? "#fff594"
+        : exitcode === 0
+        ? "#a1c59c"
+        : exitcode === 137
+        ? "#ffcccc"
+        : "#ff8282";
     case "restarting":
     case "created":
       return "#f6ecd5";
     case "running":
       switch (health) {
         case "starting":
-          return "#f5ffb4";
+          return "#eefd83";
         case "healthy":
-          return "#bbffbb";
+          return "#a1ffa1";
         default:
-          return "#bbffbb";
+          return "#87c487";
       }
     default:
       return "#8a8a8a";
@@ -102,26 +108,28 @@ function ExtraLink({ service }) {
   const link = service.labels?.["dashboard.extra-link"];
   const text = service.labels?.["dashboard.extra-text"];
   if (link && text) {
-    const onclick = (e) => {
-      e.stopPropagation();
-      window.open(link, "_blank", "noreferrer");
-    };
-    return html`<div class="extra" onclick=${onclick}>${text}</div>`;
+    return html`<a class="extra" href=${link}>${text}</a>`;
   } else return null;
 }
 
 function Service({ service, update }) {
-  const color = getColor(service.status.State, service.status.Health);
+  const color = getColor(
+    service.status.State,
+    service.status.Health,
+    service.status.ExitCode,
+  );
   const link = service.labels?.["dashboard.link"];
-  const onclick = () => link && window.open(link, "_blank", "noreferrer");
   return html`
-        <div class="service ${link ? "hasLink" : ""}" onclick=${onclick}
-             title=${service.status.Status} style="background-color: ${color}">
+    <div class="service" title=${service.status.Status} style="background-color: ${color}">
+        <a href=${link} class="service-link">
             <${Icon} service=${service}/>
-            ${service.labels?.["dashboard.title"] ?? service.name}
-            <${Control} service=${service} update=${update}/>
-            <${ExtraLink} service=${service}/>
-        </div>
+              <div class="service-name">
+                ${service.labels?.["dashboard.title"] ?? service.name}
+              </div>
+        </a>
+        <${Control} service=${service} update=${update}/>
+        <${ExtraLink} service=${service}/>
+    </div>
     `;
 }
 
