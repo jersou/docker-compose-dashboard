@@ -98,6 +98,7 @@ class DockerComposeDashboard {
   hostname = "localhost";
   port = 5555;
   notExitIfNoClient = false;
+  openInBrowser = false;
   update = false;
   _update_desc = "update assets_bundle.json";
   #sockets = new Set<WebSocket>();
@@ -222,8 +223,19 @@ class DockerComposeDashboard {
     await $`docker compose config --quiet`;
 
     this.#watchDockerComposeEvents().then();
+    const onListen = async () => {
+      if (this.openInBrowser) {
+        if (await $.commandExists("chromium")) {
+          await $`chromium --app=http://localhost:5555/`;
+        } else if (await $.commandExists("google-chrome")) {
+          await $`google-chrome --app=http://localhost:5555/`;
+        } else {
+          await $`gio open http://localhost:5555/`;
+        }
+      }
+    };
     Deno.serve(
-      { hostname: this.hostname, port: this.port },
+      { hostname: this.hostname, port: this.port, onListen },
       (r) => this.#handleRequest(r),
     );
   }
