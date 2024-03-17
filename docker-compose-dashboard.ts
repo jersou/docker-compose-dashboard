@@ -97,6 +97,7 @@ type Assets = {
 class DockerComposeDashboard {
   hostname = "localhost";
   port = 5555;
+  notExitIfNoClient = false;
   update = false;
   _update_desc = "update assets_bundle.json";
   #sockets = new Set<WebSocket>();
@@ -130,6 +131,10 @@ class DockerComposeDashboard {
       socket.addEventListener("close", () => {
         this.#sockets.delete(socket);
         console.log(`a client disconnected! ${this.#sockets.size} clients`);
+        if (!this.notExitIfNoClient && this.#sockets.size === 0) {
+          console.log(`→ ExitIfNoClient → exit !`);
+          Deno.exit(0);
+        }
       });
       return response;
     }
