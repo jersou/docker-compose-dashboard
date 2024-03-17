@@ -1,8 +1,8 @@
 # docker compose dashboard
 
-see [docker-compose.yml](example%2Fdocker-compose.yml)
+Example from  [docker-compose.yml](example%2Fdocker-compose.yml) :
 
-![screenshot.png](screenshot.png)
+https://github.com/jersou/docker-compose-dashboard/assets/5874319/a24ddfc2-3f75-4b3d-89b4-8f98b53042e7
 
 ## install
 ```shell
