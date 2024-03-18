@@ -37,7 +37,7 @@ function getColor(state, health, exitcode) {
         case "healthy":
           return "#a1ffa1";
         default:
-          return "#87c487";
+          return "#67efa2";
       }
     default:
       return "#8a8a8a";
