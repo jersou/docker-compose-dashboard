@@ -29,6 +29,26 @@ deno run \
 # → open localhost:5555 in a browser
 ```
 
+/docker-compose-dashboard.ts --help
+Usage: <DockerComposeDashboard file> [Options] [command [command args]]
+
+## Usage
+
+```
+Commands:
+main          (default)
+updateAssets
+
+Options:
+--hostname=<HOSTNAME>                            (default "localhost")
+--port=<PORT>                                    (default "5555")
+--not-exit-if-no-client=<NOT_EXIT_IF_NO_CLIENT>  (default "false")
+--open-in-browser=<OPEN_IN_BROWSER>              (default "false")
+--update=<UPDATE>                                update assets_bundle.json (default "false")
+--help                                           Show this help
+```
+
+
 
 ## TODO :
 

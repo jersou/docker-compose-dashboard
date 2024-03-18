@@ -97,12 +97,38 @@ type Assets = {
 class DockerComposeDashboard {
   hostname = "localhost";
   port = 5555;
-  notExitIfNoClient = false;
-  openInBrowser = false;
-  update = false;
+  notExitIfNoClient: boolean | string = false;
+  openInBrowser: boolean | string = false;
+  update: boolean | string = false;
   _update_desc = "update assets_bundle.json";
   #sockets = new Set<WebSocket>();
   #assets: Assets = {};
+
+  async main() {
+    console.log(`Docker Compose Dashboard running from ${Deno.cwd()}`);
+    await this.#loadAssets();
+
+    $.setPrintCommand(true);
+    // check config from current dir
+    await $`docker compose config --quiet`;
+
+    this.#watchDockerComposeEvents().then();
+    const onListen = async () => {
+      if (this.openInBrowser === true || this.openInBrowser === "true") {
+        if (await $.commandExists("chromium")) {
+          await $`chromium --app=http://localhost:5555/`;
+        } else if (await $.commandExists("google-chrome")) {
+          await $`google-chrome --app=http://localhost:5555/`;
+        } else {
+          await $`gio open http://localhost:5555/`;
+        }
+      }
+    };
+    Deno.serve(
+      { hostname: this.hostname, port: this.port, onListen },
+      (r) => this.#handleRequest(r),
+    );
+  }
 
   async #handleRequest(request: Request) {
     console.log(`handle ${request.url}`);
@@ -132,7 +158,10 @@ class DockerComposeDashboard {
       socket.addEventListener("close", () => {
         this.#sockets.delete(socket);
         console.log(`a client disconnected! ${this.#sockets.size} clients`);
-        if (!this.notExitIfNoClient && this.#sockets.size === 0) {
+        if (
+          (this.notExitIfNoClient === false ||
+            this.notExitIfNoClient === "false") && this.#sockets.size === 0
+        ) {
           console.log(`→ ExitIfNoClient → exit !`);
           Deno.exit(0);
         }
@@ -197,7 +226,7 @@ class DockerComposeDashboard {
   }
 
   async #loadAssets() {
-    if (this.update) {
+    if (this.update === true || this.update === "true") {
       await this.updateAssets();
     } else {
       for (const [key, asset] of Object.entries(assetsFromJson)) {
@@ -212,32 +241,6 @@ class DockerComposeDashboard {
       const route = new URLPattern({ pathname: "/" });
       this.#assets["/"] = { ...this.#assets["/index.html"], route };
     }
-  }
-
-  async main() {
-    console.log(`Docker Compose Dashboard running from ${Deno.cwd()}`);
-    await this.#loadAssets();
-
-    $.setPrintCommand(true);
-    // check config from current dir
-    await $`docker compose config --quiet`;
-
-    this.#watchDockerComposeEvents().then();
-    const onListen = async () => {
-      if (this.openInBrowser) {
-        if (await $.commandExists("chromium")) {
-          await $`chromium --app=http://localhost:5555/`;
-        } else if (await $.commandExists("google-chrome")) {
-          await $`google-chrome --app=http://localhost:5555/`;
-        } else {
-          await $`gio open http://localhost:5555/`;
-        }
-      }
-    };
-    Deno.serve(
-      { hostname: this.hostname, port: this.port, onListen },
-      (r) => this.#handleRequest(r),
-    );
   }
 }
 
