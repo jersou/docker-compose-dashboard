@@ -132,3 +132,15 @@ a, a:visited {
     text-decoration: none;
     color: #1c2aa9;
 }
+
+.ko {
+    background-color: red;
+    position: absolute;
+    height: 200px;
+    width: 100%;
+    font-size: 40px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

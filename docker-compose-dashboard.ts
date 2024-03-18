@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run  --allow-net=localhost:5555 --allow-env --allow-read --allow-write=assets_bundle.json --allow-run=/usr/bin/docker
+#!/usr/bin/env -S deno run  --allow-net=localhost:5555 --allow-env --allow-read --allow-write=assets_bundle.json --allow-run=/usr/bin/docker,/usr/bin/chromium,/usr/bin/gio
 
 import $ from "https://deno.land/x/dax@0.39.2/mod.ts";
 import { TextLineStream } from "https://deno.land/std@0.219.0/streams/text_line_stream.ts";
