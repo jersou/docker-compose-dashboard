@@ -113,14 +113,16 @@ class DockerComposeDashboard {
     await $`docker compose config --quiet`;
 
     this.#watchDockerComposeEvents().then();
-    const onListen = async () => {
+    const onListen = async (params: { hostname: string; port: number }) => {
+      this.port = params.port;
+      this.hostname = params.hostname;
       if (this.openInBrowser === true || this.openInBrowser === "true") {
         if (await $.commandExists("chromium")) {
-          await $`chromium --app=http://localhost:5555/`;
+          await $`chromium --app=http://${this.hostname}:${this.port}/`;
         } else if (await $.commandExists("google-chrome")) {
-          await $`google-chrome --app=http://localhost:5555/`;
+          await $`google-chrome --app=http://${this.hostname}:${this.port}/`;
         } else {
-          await $`gio open http://localhost:5555/`;
+          await $`gio open http://${this.hostname}:${this.port}/`;
         }
       }
     };
@@ -135,9 +137,7 @@ class DockerComposeDashboard {
     for (const { route, exec } of routes) {
       const match = route.exec(request.url);
       if (match) {
-        const resp = await exec(match);
-        resp.headers.set("Access-Control-Allow-Origin", "*");
-        return resp;
+        return await exec(match);
       }
     }
     for (const file of Object.values(this.#assets!)) {
