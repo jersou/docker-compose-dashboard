@@ -215,11 +215,7 @@ class DockerComposeDashboard {
     }
     const paths = Object.keys(this.#assets).sort();
     const assets: Assets = {};
-
-    paths.forEach((path) => {
-      assets[path] = this.#assets[path];
-    });
-
+    paths.forEach((path) => (assets[path] = this.#assets[path]));
     await Deno.writeTextFile(
       $.path(import.meta).resolve("../assets_bundle.json").toString(),
       JSON.stringify(assets, (key, value) => {
