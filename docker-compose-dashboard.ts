@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run  --allow-net=localhost:5555 --allow-env --allow-read --allow-write=assets_bundle.json --allow-run=/usr/bin/docker,/usr/bin/chromium,/usr/bin/gio
+#!/usr/bin/env -S deno run  --allow-net=localhost:5555 --allow-env --allow-read --allow-write=assets_bundle.json --allow-run
 
 import $ from "https://deno.land/x/dax@0.39.2/mod.ts";
 import { TextLineStream } from "https://deno.land/std@0.219.0/streams/text_line_stream.ts";
@@ -99,6 +99,7 @@ class DockerComposeDashboard {
   port = 5555;
   notExitIfNoClient: boolean | string = false;
   openInBrowser: boolean | string = false;
+  openInBrowserAppMode: boolean | string = false;
   update: boolean | string = false;
   _update_desc = "update assets_bundle.json";
   #sockets = new Set<WebSocket>();
@@ -116,13 +117,21 @@ class DockerComposeDashboard {
     const onListen = async (params: { hostname: string; port: number }) => {
       this.port = params.port;
       this.hostname = params.hostname;
-      if (this.openInBrowser === true || this.openInBrowser === "true") {
-        if (await $.commandExists("chromium")) {
-          await $`chromium --app=http://${this.hostname}:${this.port}/`;
-        } else if (await $.commandExists("google-chrome")) {
-          await $`google-chrome --app=http://${this.hostname}:${this.port}/`;
+
+      if (this.openInBrowser && this.openInBrowser !== "false") {
+        const appMode = this.openInBrowserAppMode === true ||
+          this.openInBrowserAppMode === "true";
+        const arg = appMode ? "--app=" : "";
+        if (this.openInBrowser === true || this.openInBrowser === "true") {
+          if (await $.commandExists("chromium")) {
+            await $`chromium ${arg}http://${this.hostname}:${this.port}/`;
+          } else if (await $.commandExists("google-chrome")) {
+            await $`google-chrome ${arg}http://${this.hostname}:${this.port}/`;
+          } else {
+            await $`gio open http://${this.hostname}:${this.port}/`;
+          }
         } else {
-          await $`gio open http://${this.hostname}:${this.port}/`;
+          await $`${this.openInBrowser} ${arg}http://${this.hostname}:${this.port}/`;
         }
       }
     };

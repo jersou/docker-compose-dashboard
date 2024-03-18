@@ -12,7 +12,7 @@ deno install -f \
     --allow-env \
     --allow-read \
     --allow-run=/usr/bin/docker \
-        https://deno.land/x/docker_compose_dashboard@0.1.1/docker-compose-dashboard.ts
+        https://deno.land/x/docker_compose_dashboard@0.1.2/docker-compose-dashboard.ts
 # → run "docoda" from a docker compose project
 # → open localhost:5555 in a browser
 ```
@@ -25,7 +25,7 @@ deno run \
     --allow-env \
     --allow-read \
     --allow-run=/usr/bin/docker \
-        https://deno.land/x/docker_compose_dashboard@0.1.1/docker-compose-dashboard.ts
+        https://deno.land/x/docker_compose_dashboard@0.1.2/docker-compose-dashboard.ts
 # → open localhost:5555 in a browser
 ```
 
@@ -37,16 +37,17 @@ $ ./docker-compose-dashboard.ts --help
 Usage: <DockerComposeDashboard file> [Options] [command [command args]]
 
 Commands:
-main          (default)
-updateAssets
+  main          (default)
+  updateAssets
 
 Options:
---hostname=<HOSTNAME>                            (default "localhost")
---port=<PORT>                                    (default "5555")
---not-exit-if-no-client=<NOT_EXIT_IF_NO_CLIENT>  (default "false")
---open-in-browser=<OPEN_IN_BROWSER>              (default "false")
---update=<UPDATE>                                update assets_bundle.json (default "false")
---help                                           Show this help
+  --hostname=<HOSTNAME>                                  (default "localhost")
+  --port=<PORT>                                          (default "5555")
+  --not-exit-if-no-client=<NOT_EXIT_IF_NO_CLIENT>        (default "false")
+  --open-in-browser=<OPEN_IN_BROWSER>                    (default "false")
+  --open-in-browser-app-mode=<OPEN_IN_BROWSER_APP_MODE>  (default "false")
+  --update=<UPDATE>                                      update assets_bundle.json (default "false")
+  --help                                                 Show this help
 ```
 
 ## Labels in docker-compose.yml file :
