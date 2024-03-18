@@ -121,6 +121,16 @@ function ExtraLink({ service }) {
     return html`<a class="extra" href=${link}>${text}</a>`;
   } else return null;
 }
+function getTitle(status) {
+  switch (status.State) {
+    case "exited":
+      return `Status : ${status.State} (${status.ExitCode})`;
+    case "running":
+      return `Status : ${status.State} (${status.Health})`;
+    default:
+      return `Status : ${status.State}`;
+  }
+}
 
 function Service({ service, update }) {
   const color = getColor(
@@ -129,8 +139,9 @@ function Service({ service, update }) {
     service.status.ExitCode,
   );
   const link = service.labels?.["dashboard.link"];
+  const title = getTitle(service.status);
   return html`
-    <div class="service" title=${service.status.Status} style="background-color: ${color}">
+    <div class="service" title=${title} style="background-color: ${color}">
         <a href=${link} class="service-link${link ? "" : " no-link"}">
             <${Icon} service=${service}/>
               <div class="service-name">

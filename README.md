@@ -12,7 +12,7 @@ deno install -f \
     --allow-env \
     --allow-read \
     --allow-run=/usr/bin/docker \
-        https://deno.land/x/docker_compose_dashboard@0.1.0/docker-compose-dashboard.ts
+        https://deno.land/x/docker_compose_dashboard@0.1.1/docker-compose-dashboard.ts
 # → run "docoda" from a docker compose project
 # → open localhost:5555 in a browser
 ```
@@ -25,16 +25,17 @@ deno run \
     --allow-env \
     --allow-read \
     --allow-run=/usr/bin/docker \
-        https://deno.land/x/docker_compose_dashboard@0.1.0/docker-compose-dashboard.ts
+        https://deno.land/x/docker_compose_dashboard@0.1.1/docker-compose-dashboard.ts
 # → open localhost:5555 in a browser
 ```
 
-/docker-compose-dashboard.ts --help
-Usage: <DockerComposeDashboard file> [Options] [command [command args]]
 
 ## Usage
 
 ```
+$ ./docker-compose-dashboard.ts --help
+Usage: <DockerComposeDashboard file> [Options] [command [command args]]
+
 Commands:
 main          (default)
 updateAssets
@@ -48,21 +49,20 @@ Options:
 --help                                           Show this help
 ```
 
+## Labels in docker-compose.yml file :
+
+- dashboard.index: <number, used to sort cards>
+- dashboard.title: <string, title in card, service name if missing>
+- dashboard.material-symbols-outlined: <string, material symbol to use in card>
+- dashboard.link: <string, link on card>
+- dashboard.extra-link: <string, extra link>
+- dashboard.extra-text: <string, extra link title>
 
 
 ## TODO :
 
-
-- README.md
-  - lib list
-    - https://github.com/denoland/deno
-    - https://github.com/developit/htm
-    - https://github.com/preactjs/preact
-    - https://github.com/denoland/deno
-- labels
-  - dashboard.index:
-    - dashboard.title:
-    - dashboard.material-symbols-outlined:
-    - dashboard.link:
-    - dashboard.extra-link:
-    - dashboard.extra-text:
+- lib list
+  - https://github.com/denoland/deno
+  - https://github.com/developit/htm
+  - https://github.com/preactjs/preact
+  - https://github.com/denoland/deno
