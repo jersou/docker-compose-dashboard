@@ -12,8 +12,6 @@ import { walk } from "https://deno.land/std@0.219.0/fs/walk.ts";
 import { assert } from "https://deno.land/std@0.219.0/assert/assert.ts";
 import { extname } from "https://deno.land/std@0.219.0/path/extname.ts";
 
-const wsRoute = new URLPattern({ pathname: "/api/events-ws" });
-
 const getStatus = async () =>
   (await $`docker compose ps --all --format json`.text())
     .split("\n")
@@ -34,7 +32,8 @@ const getStatus = async () =>
 
 const labelSplitRegex = /^([^=]*)=(.*)/;
 const getConfig = async () => {
-  const config = await $`docker compose config --format json`.json();
+  const config = await $`docker compose config --format json --no-interpolate`
+    .json();
   return Object.entries(config.services)
     .map(([k, v]) => {
       const labels = (v as any).labels;
@@ -64,32 +63,6 @@ const getConfigWithStatus = async () => {
   return config;
 };
 
-const routes = [
-  {
-    route: new URLPattern({ pathname: "/api/status" }),
-    async exec(_match: URLPatternResult) {
-      const body = JSON.stringify(await getConfigWithStatus());
-      return new Response(body, { status: 200 });
-    },
-  },
-  {
-    route: new URLPattern({ pathname: "/api/up/:id" }),
-    async exec(match: URLPatternResult) {
-      const service = match.pathname.groups.id;
-      const body = await $`docker compose up -d ${service}`.text();
-      return new Response(body, { status: 200 });
-    },
-  },
-  {
-    route: new URLPattern({ pathname: "/api/kill/:id" }),
-    async exec(match: URLPatternResult) {
-      const service = match.pathname.groups.id;
-      const body = await $`docker compose kill ${service}`.text();
-      return new Response(body, { status: 200 });
-    },
-  },
-] as const;
-
 type Assets = {
   [k: string]: { type: string; content: Uint8Array; route: URLPattern };
 };
@@ -102,14 +75,45 @@ class DockerComposeDashboard {
   openInBrowserAppMode: boolean | string = false;
   update: boolean | string = false;
   _update_desc = "update assets_bundle.json";
+  #server: Deno.HttpServer | undefined;
   #sockets = new Set<WebSocket>();
   #assets: Assets = {};
+  #wsRoute = new URLPattern({ pathname: "/api/events-ws" });
+  #routes = [
+    {
+      route: new URLPattern({ pathname: "/api/status" }),
+      exec: async (_match: URLPatternResult, request: Request) => {
+        const body = JSON.stringify(await getConfigWithStatus());
+        return new Response(body, { status: 200 });
+      },
+    },
+    {
+      route: new URLPattern({ pathname: "/api/up/:id" }),
+      exec: async (match: URLPatternResult, request: Request) => {
+        const service = match.pathname.groups.id;
+        const body = await $`docker compose up -d ${service}`.text();
+        return new Response(body, { status: 200 });
+      },
+    },
+    {
+      route: new URLPattern({ pathname: "/api/kill/:id" }),
+      exec: async (match: URLPatternResult, request: Request) => {
+        const service = match.pathname.groups.id;
+        const body = await $`docker compose kill ${service}`.text();
+        return new Response(body, { status: 200 });
+      },
+    },
+  ] as const;
+
+  #sendWs(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
+    this.#sockets.forEach((s) => s.send(data));
+  }
 
   async main() {
+    $.setPrintCommand(true);
     console.log(`Docker Compose Dashboard running from ${Deno.cwd()}`);
     await this.#loadAssets();
 
-    $.setPrintCommand(true);
     // check config from current dir
     await $`docker compose config --quiet`;
 
@@ -119,86 +123,75 @@ class DockerComposeDashboard {
       this.hostname = params.hostname;
 
       if (this.openInBrowser && this.openInBrowser !== "false") {
-        const appMode = this.openInBrowserAppMode === true ||
-          this.openInBrowserAppMode === "true";
-        const arg = appMode ? "--app=" : "";
-        if (this.openInBrowser === true || this.openInBrowser === "true") {
-          if (await $.commandExists("chromium")) {
-            await $`chromium ${arg}http://${this.hostname}:${this.port}/`;
-          } else if (await $.commandExists("google-chrome")) {
-            await $`google-chrome ${arg}http://${this.hostname}:${this.port}/`;
-          } else {
-            await $`gio open http://${this.hostname}:${this.port}/`;
-          }
-        } else {
-          await $`${this.openInBrowser} ${arg}http://${this.hostname}:${this.port}/`;
-        }
+        this.#openInBrowser().then();
       }
     };
-    Deno.serve(
+    this.#server = Deno.serve(
       { hostname: this.hostname, port: this.port, onListen },
       (r) => this.#handleRequest(r),
     );
   }
 
+  async #openInBrowser() {
+    const appMode = this.openInBrowserAppMode === true ||
+      this.openInBrowserAppMode === "true";
+    const arg = appMode ? "--app=" : "";
+    if (this.openInBrowser === true || this.openInBrowser === "true") {
+      if (await $.commandExists("chromium")) {
+        await $`chromium ${arg}http://${this.hostname}:${this.port}/`;
+      } else if (await $.commandExists("google-chrome")) {
+        await $`google-chrome ${arg}http://${this.hostname}:${this.port}/`;
+      } else {
+        await $`gio open http://${this.hostname}:${this.port}/`;
+      }
+    } else {
+      await $`${this.openInBrowser} ${arg}http://${this.hostname}:${this.port}/`;
+    }
+  }
+
   async #handleRequest(request: Request) {
     console.log(`handle ${request.url}`);
-    for (const { route, exec } of routes) {
+    for (const { route, exec } of this.#routes) {
       const match = route.exec(request.url);
       if (match) {
-        return await exec(match);
+        return await exec(match, request);
       }
     }
-    for (const file of Object.values(this.#assets!)) {
+    for (const file of Object.values(this.#assets ?? {})) {
       if (file.route?.exec(request.url)) {
         const headers = { "Content-Type": file.type };
         return new Response(file.content, { status: 200, headers });
       }
     }
-    if (wsRoute.exec(request.url)) {
-      if (request.headers.get("upgrade") != "websocket") {
-        return new Response(null, { status: 501 });
-      }
-      const { socket, response } = Deno.upgradeWebSocket(request);
-      socket.addEventListener("open", () => {
-        this.#sockets.add(socket);
-        console.log(`a client connected! ${this.#sockets.size} clients`);
-      });
-      socket.addEventListener("close", () => {
-        this.#sockets.delete(socket);
-        console.log(`a client disconnected! ${this.#sockets.size} clients`);
-        if (
-          (this.notExitIfNoClient === false ||
-            this.notExitIfNoClient === "false") && this.#sockets.size === 0
-        ) {
-          console.log(`→ ExitIfNoClient → exit !`);
-          Deno.exit(0);
-        }
-      });
-      return response;
+    if (this.#wsRoute.exec(request.url)) {
+      return this.#handleWsRequest(request);
     }
     return new Response("", { status: 404 });
   }
 
-  async #watchDockerComposeEvents() {
-    const eventProcess = $`docker compose events --json `.stdout("piped")
-      .spawn();
-    const lines = eventProcess.stdout()
-      .pipeThrough(new TextDecoderStream())
-      .pipeThrough(new TextLineStream());
-    for await (const line of lines) {
-      const event = JSON.parse(line);
-      if (event.action && !event.action.startsWith("exec_")) {
-        console.log(`>>>> docker compose event : ${event.action}`);
-        // TODO debounce
-        const config = await getConfigWithStatus();
-        const configJson = JSON.stringify(config);
-        for (const socket of this.#sockets) {
-          socket.send(configJson);
-        }
-      }
+  #handleWsRequest(request: Request) {
+    if (request.headers.get("upgrade") != "websocket") {
+      return new Response(null, { status: 501 });
     }
+    const { socket, response } = Deno.upgradeWebSocket(request);
+    socket.addEventListener("open", () => {
+      this.#sockets.add(socket);
+      console.log(`a client connected! ${this.#sockets.size} clients`);
+    });
+    socket.addEventListener("close", () => {
+      this.#sockets.delete(socket);
+      console.log(`a client disconnected! ${this.#sockets.size} clients`);
+      if (
+        (this.notExitIfNoClient === false ||
+          this.notExitIfNoClient === "false") && this.#sockets.size === 0
+      ) {
+        console.log(`→ ExitIfNoClient → shutdown server !`);
+        Deno.exit(0);
+      }
+    });
+    return response;
   }
+
   async updateAssets() {
     console.log("update assets_bundle.json");
     const { mimeTypes } = await import("./mime-types.ts");
@@ -245,6 +238,26 @@ class DockerComposeDashboard {
     if (this.#assets["/index.html"]) {
       const route = new URLPattern({ pathname: "/" });
       this.#assets["/"] = { ...this.#assets["/index.html"], route };
+    }
+  }
+
+  async #watchDockerComposeEvents() {
+    const eventProcess = $`docker compose events --json `.stdout("piped")
+      .spawn();
+    const lines = eventProcess.stdout()
+      .pipeThrough(new TextDecoderStream())
+      .pipeThrough(new TextLineStream());
+    for await (const line of lines) {
+      const event = JSON.parse(line);
+      if (event.action && !event.action.startsWith("exec_")) {
+        console.log(`>>>> docker compose event : ${event.action}`);
+        // TODO debounce
+        const config = await getConfigWithStatus();
+        const configJson = JSON.stringify(config);
+        for (const socket of this.#sockets) {
+          socket.send(configJson);
+        }
+      }
     }
   }
 }

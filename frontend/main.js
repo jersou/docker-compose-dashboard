@@ -50,21 +50,20 @@ const wsUri =
 function updateOnEvent(update, setWsOk) {
   const socket = new WebSocket(wsUri);
   socket.addEventListener("open", (event) => {
-    console.log("ws ok");
-    socket.send("ws ok");
+    console.log("WebSocket: open");
     setWsOk(true);
     update();
   });
   socket.addEventListener("message", (event) => {
-    console.log("update from server");
+    console.log("WebSocket: update from server");
     update(JSON.parse(event.data));
   });
   socket.addEventListener("error", (event) => {
-    console.log("error event", event);
+    console.log("WebSocket: error event", event);
     setWsOk(false);
   });
   socket.addEventListener("close", (event) => {
-    console.log("close event", event);
+    console.log("WebSocket: close event", event);
     setWsOk(false);
     // retry in 5s
     setTimeout(() => updateOnEvent(update, setWsOk), 5000);
