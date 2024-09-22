@@ -1,19 +1,17 @@
 #!/usr/bin/env -S deno run  --allow-net=localhost:5555 --allow-env --allow-read --allow-write=assets_bundle.json --allow-run
 
-import $ from "https://deno.land/x/dax@0.39.2/mod.ts";
-import { TextLineStream } from "https://deno.land/std@0.219.0/streams/text_line_stream.ts";
-import {
-  decodeBase64,
-  encodeBase64,
-} from "https://deno.land/std@0.220.0/encoding/base64.ts";
-import { cliteRun } from "https://deno.land/x/clite_parser@0.2.1/clite_parser.ts";
+import { assert } from "jsr:@std/assert@1.0.5";
+import { decodeBase64, encodeBase64 } from "jsr:@std/encoding";
+import { walk } from "jsr:@std/fs@1.0.3";
+import { contentType } from "jsr:@std/media-types@1.0.3";
+import { extname } from "jsr:@std/path@1.0.6";
+import $ from "jsr:@david/dax@0.42.0";
+import { TextLineStream } from "jsr:@std/streams@1.0.5";
+import { cliteRun } from "jsr:@jersou/clite@0.3.2";
 import assetsFromJson from "./assets_bundle.json" with { type: "json" };
-import { walk } from "https://deno.land/std@0.219.0/fs/walk.ts";
-import { assert } from "https://deno.land/std@0.219.0/assert/assert.ts";
-import { extname } from "https://deno.land/std@0.219.0/path/extname.ts";
 
 const getStatus = async () =>
-  (await $`docker compose ps --all --format json`.text())
+  ((await $`docker compose ps --all --format json`.text()) || "{}")
     .split("\n")
     .map((s) => JSON.parse(s))
     .map((s: any) => ({
@@ -90,7 +88,7 @@ class DockerComposeDashboard {
     {
       route: new URLPattern({ pathname: "/api/up/:id" }),
       exec: async (match: URLPatternResult, request: Request) => {
-        const service = match.pathname.groups.id;
+        const service = match.pathname.groups.id!;
         const body = await $`docker compose up -d ${service}`.text();
         return new Response(body, { status: 200 });
       },
@@ -98,7 +96,7 @@ class DockerComposeDashboard {
     {
       route: new URLPattern({ pathname: "/api/kill/:id" }),
       exec: async (match: URLPatternResult, request: Request) => {
-        const service = match.pathname.groups.id;
+        const service = match.pathname.groups.id!;
         const body = await $`docker compose kill ${service}`.text();
         return new Response(body, { status: 200 });
       },
@@ -121,7 +119,7 @@ class DockerComposeDashboard {
     const onListen = async (params: { hostname: string; port: number }) => {
       this.port = params.port;
       this.hostname = params.hostname;
-
+      console.log(`Listen on ${this.hostname}:${this.port}`);
       if (this.openInBrowser && this.openInBrowser !== "false") {
         this.#openInBrowser().then();
       }
@@ -194,13 +192,13 @@ class DockerComposeDashboard {
 
   async updateAssets() {
     console.log("update assets_bundle.json");
-    const { mimeTypes } = await import("./mime-types.ts");
-    const frontendPath = $.path(import.meta).resolve(`../frontend/`).toString();
+    const frontendPath = $.path(import.meta.url).resolve(`../frontend/`)
+      .toString();
     for await (const entry of walk(frontendPath, { includeDirs: false })) {
       assert(entry.path.startsWith(frontendPath));
       const path = entry.path.substring(frontendPath.length);
-      const ext = extname(path)?.substring(1);
-      const type = mimeTypes[ext];
+      const ext = extname(path);
+      const type = contentType(ext) ?? "";
       const content = await Deno.readFile(entry.path);
       const route = new URLPattern({ pathname: path });
       this.#assets[path] = { type, route, content };
@@ -210,7 +208,7 @@ class DockerComposeDashboard {
     const assets: Assets = {};
     paths.forEach((path) => (assets[path] = this.#assets[path]));
     await Deno.writeTextFile(
-      $.path(import.meta).resolve("../assets_bundle.json").toString(),
+      $.path(import.meta.url).resolve("../assets_bundle.json").toString(),
       JSON.stringify(assets, (key, value) => {
         if (key === "content") {
           return encodeBase64(value as Uint8Array);
