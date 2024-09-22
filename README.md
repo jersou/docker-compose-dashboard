@@ -19,13 +19,20 @@ deno install -f \
 
 
 ## or run directly from a docker compose project
+
+```shell
+deno run -A jsr:@jersou/docker-compose-dashboard@0.2.0
+# → open localhost:5555 in a browser
+```
+
+or specify permissions :
 ```shell
 deno run \
     --allow-net=localhost:5555 \
     --allow-env \
     --allow-read \
     --allow-run=/usr/bin/docker \
-        https://deno.land/x/docker_compose_dashboard@0.1.2/docker-compose-dashboard.ts
+        jsr:@jersou/docker-compose-dashboard@0.2.0
 # → open localhost:5555 in a browser
 ```
 
