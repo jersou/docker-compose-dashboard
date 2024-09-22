@@ -1,0 +1,6 @@
+{
+  "name": "@jersou/docker-compose-dashboard",
+  "version": "0.2.0",
+  "exports": "./docker-compose-dashboard.ts",
+  "license": "MIT"
+}

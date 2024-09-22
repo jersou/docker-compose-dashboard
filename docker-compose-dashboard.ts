@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run  --allow-net=localhost:5555 --allow-env --allow-read --allow-write=assets_bundle.json --allow-run
 
 import { assert } from "jsr:@std/assert@1.0.5";
-import { decodeBase64, encodeBase64 } from "jsr:@std/encoding";
+import { decodeBase64, encodeBase64 } from "jsr:@std/encoding@1.0.5";
 import { walk } from "jsr:@std/fs@1.0.3";
 import { contentType } from "jsr:@std/media-types@1.0.3";
 import { extname } from "jsr:@std/path@1.0.6";
