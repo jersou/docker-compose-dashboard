@@ -7,12 +7,13 @@ https://github.com/jersou/docker-compose-dashboard/assets/5874319/a24ddfc2-3f75-
 ## install
 ```shell
 deno install -f \
+    -g \
     --name docoda \
     --allow-net=localhost:5555 \
     --allow-env \
     --allow-read \
     --allow-run=/usr/bin/docker \
-        https://deno.land/x/docker_compose_dashboard@0.1.2/docker-compose-dashboard.ts
+        jsr:@jersou/docker-compose-dashboard@0.2.0
 # → run "docoda" from a docker compose project
 # → open localhost:5555 in a browser
 ```
@@ -41,20 +42,20 @@ deno run \
 
 ```
 $ ./docker-compose-dashboard.ts --help
-Usage: <DockerComposeDashboard file> [Options] [command [command args]]
+Usage: ./docker-compose-dashboard.ts [Options] [--] [command [command args]]
 
 Commands:
-  main          (default)
-  updateAssets
+  main         [default]
+  checkCompose
 
 Options:
-  --hostname=<HOSTNAME>                                  (default "localhost")
-  --port=<PORT>                                          (default "5555")
-  --not-exit-if-no-client=<NOT_EXIT_IF_NO_CLIENT>        (default "false")
-  --open-in-browser=<OPEN_IN_BROWSER>                    (default "false")
-  --open-in-browser-app-mode=<OPEN_IN_BROWSER_APP_MODE>  (default "false")
-  --update=<UPDATE>                                      update assets_bundle.json (default "false")
-  --help                                                 Show this help
+ -h, --help                     Show this help                                                        [default: false]
+     --hostname                 Server hostname                                                 [default: "localhost"]
+     --port                     Server port                                                            [default: 5555]
+     --open-in-browser          Open with chromium/chrome/gio if true or with the parameter [default: "google-chrome"]
+     --open-in-browser-app-mode Add --app= to browser command if openInBrowser is used                [default: false]
+     --not-exit-if-no-client    Keep the server alive after the last client disconnects               [default: false]
+
 ```
 
 ## Labels in docker-compose.yml file :
@@ -66,6 +67,12 @@ Options:
 - dashboard.extra-link: <string, extra link>
 - dashboard.extra-text: <string, extra link title>
 
+## To update the asset bundle after frontend update
+
+Run from the source dir with :
+```shell
+./docker-compose-dashboard.ts updateAssetsBundle
+```
 
 ## TODO :
 
@@ -74,3 +81,5 @@ Options:
   - https://github.com/developit/htm
   - https://github.com/preactjs/preact
   - https://github.com/denoland/deno
+  - https://jsr.io/@jersou/desktop-web-app
+  - https://jsr.io/@jersou/clite
