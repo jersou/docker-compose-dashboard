@@ -1,4 +1,5 @@
-#!/usr/bin/env -S deno run  --allow-net=localhost:5555 --allow-env --allow-read --allow-write=assets_bundle.json --allow-run
+#!/usr/bin/env -S deno run -A
+// deno-lint-ignore-file no-explicit-any
 
 import $ from "jsr:@david/dax@0.42.0";
 import { TextLineStream } from "jsr:@std/streams@1.0.5";

@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-
   db:
     labels:
       dashboard.index: 2
@@ -66,5 +63,3 @@ services:
 #    working_dir: /host/example
 #    ports:
 #      - 127.0.0.1:5555:5555
-
-

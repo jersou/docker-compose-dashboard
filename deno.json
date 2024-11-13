@@ -1,6 +1,14 @@
 {
   "name": "@jersou/docker-compose-dashboard",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "exports": "./docker-compose-dashboard.ts",
-  "license": "MIT"
+  "license": "MIT",
+  "tasks": {
+    "fmt": "deno fmt  --ignore=frontend/,assets_bundle.json .",
+    "check": "deno check docker-compose-dashboard.ts",
+    "lint": "deno lint --ignore=frontend/ .",
+    "pre-commit": "deno task fmt --check && deno task lint && deno task check",
+    "publish-dry-run": "deno publish --dry-run",
+    "run-example": "cd example && deno run -A ../docker-compose-dashboard.ts"
+  }
 }
